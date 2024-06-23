@@ -202,10 +202,11 @@ bool operator!=(const Array<T>& lhs, const Array<T>& rhs)
     return !operator==(lhs, rhs);
 }
 
+using floatT = double;
 struct Attributes final {
-    Array<float> positions; // 'v'  (xyz)
-    Array<float> texcoords; // 'vt' (uv)
-    Array<float> normals;   // 'vn' (xyz)
+    Array<floatT> positions; // 'v'  (xyz)
+    Array<floatT> texcoords; // 'vt' (uv)
+    Array<floatT> normals;   // 'vn' (xyz)
     Array<float> colors;    //  vertex color extension (see http://paulbourke.net/dataformats/obj/colour.html)
 };
 
@@ -4454,15 +4455,15 @@ struct Chunk final {
         size_t line_count{};
     };
     struct Positions final {
-        Buffer<float> buffer{};
+        Buffer<floatT> buffer{};
         size_t        count{};
     };
     struct Texcoords final {
-        Buffer<float> buffer{};
+        Buffer<floatT> buffer{};
         size_t        count{};
     };
     struct Normals final {
-        Buffer<float> buffer{};
+        Buffer<floatT> buffer{};
         size_t        count{};
     };
     struct Colors final {
@@ -4585,6 +4586,7 @@ struct CopyIndices;
 using CopyBytes  = CopyElements<uint8_t>;
 using CopyInts   = CopyElements<int32_t>;
 using CopyFloats = CopyElements<float>;
+using CopyDoubles = CopyElements<double>;
 
 using FillFloats = FillElements<float>;
 
@@ -4753,7 +4755,7 @@ struct CopyIndices final {
 };
 
 using MergeTask =
-    std::variant<CopyBytes, CopyInts, CopyFloats, CopyIndices, FillFloats, FillMaterialIds, FillSmoothingGroupIds>;
+    std::variant<CopyBytes, CopyInts, CopyFloats, CopyDoubles, CopyIndices, FillFloats, FillMaterialIds, FillSmoothingGroupIds>;
 using MergeTasks = std::vector<MergeTask>;
 
 template <typename T>
@@ -5451,7 +5453,7 @@ inline std::string DumpDebug(const SharedContext& context)
     return text;
 }
 
-inline auto ParseXReals(std::string_view line, size_t max_count, float* out)
+inline auto ParseXReals(std::string_view line, size_t max_count, std::floating_point auto * out)
 {
     size_t count = 0;
     while (!line.empty() && count < max_count) {
@@ -5468,7 +5470,8 @@ inline auto ParseXReals(std::string_view line, size_t max_count, float* out)
     return std::make_pair(count, line);
 }
 
-inline auto ParseXReals(std::string_view line, size_t max_count, Buffer<float>* out)
+template<std::floating_point T>
+inline auto ParseXReals(std::string_view line, size_t max_count, Buffer<T>* out)
 {
     size_t count = 0;
     out->ensure_enough_room_for(max_count);
@@ -5487,23 +5490,25 @@ inline auto ParseXReals(std::string_view line, size_t max_count, Buffer<float>* 
     return std::make_pair(count, line);
 }
 
-inline auto ParseReal(std::string_view line, float* out1)
+inline auto ParseReal(std::string_view line, std::floating_point auto* out1)
 {
     return ParseXReals(line, 1, out1);
 }
 
-inline auto ParseReals(std::string_view line, float* out1, float* out2)
+template<std::floating_point T>
+inline auto ParseReals(std::string_view line, T* out1, T* out2)
 {
-    float temp[2];
+    T temp[2];
     auto  result = ParseXReals(line, 2, temp);
     *out1        = result.first > 0 ? temp[0] : *out1;
     *out2        = result.first > 1 ? temp[1] : *out2;
     return result;
 }
 
-inline auto ParseReals(std::string_view line, float* out1, float* out2, float* out3)
+template<std::floating_point T>
+inline auto ParseReals(std::string_view line, T* out1, T* out2, T* out3)
 {
-    float temp[3];
+    T temp[3];
     auto  result = ParseXReals(line, 3, temp);
     *out1        = result.first > 0 ? temp[0] : *out1;
     *out2        = result.first > 1 ? temp[1] : *out2;
@@ -5511,7 +5516,7 @@ inline auto ParseReals(std::string_view line, float* out1, float* out2, float* o
     return result;
 }
 
-inline size_t ParseReals(std::string_view text, size_t max_count, float* out)
+inline size_t ParseReals(std::string_view text, size_t max_count, std::floating_point auto * out)
 {
     auto count = size_t{};
 
@@ -5541,7 +5546,8 @@ inline size_t ParseReals(std::string_view text, size_t max_count, Float3* out)
     return ParseReals(text, max_count, out->data());
 }
 
-inline size_t ParseReals(std::string_view text, size_t max_count, Buffer<float>* out)
+template<std::floating_point T>
+inline size_t ParseReals(std::string_view text, size_t max_count, Buffer<T>* out)
 {
     auto count = size_t{};
 
@@ -5550,7 +5556,7 @@ inline size_t ParseReals(std::string_view text, size_t max_count, Buffer<float>*
     TrimLeft(text);
 
     while (!text.empty() && count < max_count) {
-        auto value     = float();
+        auto value     = T();
         auto [ptr, rc] = fast_float::from_chars(text.data(), text.data() + text.size(), value);
         if (rc != kSuccess) {
             return 0;
@@ -6606,21 +6612,21 @@ inline Result Merge(const std::vector<Chunk>& chunks, std::shared_ptr<SharedCont
             auto dst  = positions_destination;
             auto src  = chunk.positions.buffer.data();
             auto size = chunk.positions.buffer.size();
-            tasks.push_back(CopyFloats(dst, src, size));
+            tasks.push_back(CopyElements<floatT>(dst, src, size));
             positions_destination += size;
         }
         if (chunk.texcoords.buffer.size()) {
             auto dst  = texcoords_destination;
             auto src  = chunk.texcoords.buffer.data();
             auto size = chunk.texcoords.buffer.size();
-            tasks.push_back(CopyFloats(dst, src, size));
+            tasks.push_back(CopyElements<floatT>(dst, src, size));
             texcoords_destination += size;
         }
         if (chunk.normals.buffer.size()) {
             auto dst  = normals_destination;
             auto src  = chunk.normals.buffer.data();
             auto size = chunk.normals.buffer.size();
-            tasks.push_back(CopyFloats(dst, src, size));
+            tasks.push_back(CopyElements<floatT>(dst, src, size));
             normals_destination += size;
         }
         if (chunk.colors.buffer.size()) {
@@ -7316,7 +7322,7 @@ struct TriangulateTask final {
     size_t      size{};
 };
 
-inline auto CalculatePolygonArea(float* x, float* y, size_t size) noexcept
+inline auto CalculatePolygonArea(floatT* x, floatT* y, size_t size) noexcept
 {
     auto area = 0.0f;
 
@@ -7335,11 +7341,11 @@ inline auto CalculatePolygonArea(float* x, float* y, size_t size) noexcept
 
 enum class ProjectionPlane { X, Y, Z };
 
-inline bool TriangulateSingleTask(const Array<float>& positions, const TriangulateTask& task)
+inline bool TriangulateSingleTask(const Array<floatT>& positions, const TriangulateTask& task)
 {
     auto [src, dst, cost, isrc, idst, fsrc, fdst, size] = task;
 
-    auto  complex   = std::array<std::vector<std::array<float, 2>>, 1>();
+    auto  complex   = std::array<std::vector<std::array<floatT, 2>>, 1>();
     auto& polygon   = complex.front();
     auto  index_map = std::vector<size_t>();
 
@@ -7425,9 +7431,9 @@ inline bool TriangulateSingleTask(const Array<float>& positions, const Triangula
 
             fdst += 2;
         } else {
-            auto xs = std::array<float, kMaxVerticesInFace>();
-            auto ys = std::array<float, kMaxVerticesInFace>();
-            auto zs = std::array<float, kMaxVerticesInFace>();
+            auto xs = std::array<floatT, kMaxVerticesInFace>();
+            auto ys = std::array<floatT, kMaxVerticesInFace>();
+            auto zs = std::array<floatT, kMaxVerticesInFace>();
 
             polygon.clear();
             index_map.clear();
@@ -7503,7 +7509,7 @@ inline bool TriangulateSingleTask(const Array<float>& positions, const Triangula
 }
 
 inline bool
-TriangulateTasksParallel(size_t concurrency, const Array<float>& positions, const std::vector<TriangulateTask>& tasks)
+TriangulateTasksParallel(size_t concurrency, const Array<floatT>& positions, const std::vector<TriangulateTask>& tasks)
 {
     auto task_index  = std::atomic_size_t{ 0 };
     auto num_threads = std::atomic_size_t{ concurrency };
@@ -7540,7 +7546,7 @@ TriangulateTasksParallel(size_t concurrency, const Array<float>& positions, cons
     return success;
 }
 
-inline bool TriangulateTasksSequential(const Array<float>& positions, const std::vector<TriangulateTask>& tasks)
+inline bool TriangulateTasksSequential(const Array<floatT>& positions, const std::vector<TriangulateTask>& tasks)
 {
     for (const auto& task : tasks) {
         bool success = TriangulateSingleTask(positions, task);
