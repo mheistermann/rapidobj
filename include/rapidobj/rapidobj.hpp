@@ -4070,7 +4070,7 @@ from_chars_result parse_infnan(const char *first, const char *last, T &value)  n
 template<typename T>
 from_chars_result from_chars(const char *first, const char *last,
                              T &value, chars_format fmt /*= chars_format::general*/)  noexcept  {
-  return from_chars_advanced(first, last, value, parse_options{fmt});
+    return from_chars_advanced(first, last, value, parse_options{fmt});
 }
 
 template<typename T>
@@ -4524,9 +4524,9 @@ inline size_t SizeInBytes(const Chunk& chunk) noexcept
 {
     auto size = size_t{ 0 };
 
-    size += chunk.positions.buffer.size() * sizeof(float);
-    size += chunk.texcoords.buffer.size() * sizeof(float);
-    size += chunk.normals.buffer.size() * sizeof(float);
+    size += chunk.positions.buffer.size() * sizeof(floatT);
+    size += chunk.texcoords.buffer.size() * sizeof(floatT);
+    size += chunk.normals.buffer.size() * sizeof(floatT);
     size += chunk.colors.buffer.size() * sizeof(float);
     size += chunk.mesh.indices.buffer.size() * sizeof(Index);
     size += chunk.mesh.indices.flags.size() * sizeof(OffsetFlags);
@@ -5477,7 +5477,7 @@ inline auto ParseXReals(std::string_view line, size_t max_count, Buffer<T>* out)
     out->ensure_enough_room_for(max_count);
     while (!line.empty() && count < max_count) {
         TrimLeft(line);
-        auto value     = float();
+        auto value     = T();
         auto [ptr, rc] = fast_float::from_chars(line.data(), line.data() + line.size(), value);
         if (rc != kSuccess) {
             return std::make_pair(count, line);
